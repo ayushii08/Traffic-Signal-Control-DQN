@@ -1,233 +1,269 @@
 # Traffic Signal Control Adaptation using Deep Q-Learning with Experience Replay
+This project presents a **reinforcement learning-based adaptive traffic signal control** system that leverages **Deep Q-Networks (DQN)** with experience replay to minimize vehicular congestion at a single urban intersection, simulated using **SUMO (Simulation of Urban MObility)**.
 
-In this project, we aim to implementing a learning algorithm that will allow traffic control devices to study traffic patterns/behaviors for a given intersection and optimize traffic flow by altering stoplight timing. With the help of Q-Learning technique, where an agent, based on the given state, selects an appropriate action for the intersection in order to maximize present and future rewards. 
+Urban intersections suffer from inefficient traffic signal phasing due to static control policies. **Reinforcement Learning (RL)** provides a promising alternative by learning dynamic signal control strategies based on real-time traffic states.
+
+This project applies **Deep Q-Learning (DQL)** to this problem domain, wherein the agent learns to:
+- Observe traffic conditions
+- Take phase-switching actions
+- Receive environment feedback (rewards)
+- Improve its policy via trial and error
+
+We simulate traffic patterns using **SUMO**, allowing for flexible environment design and high-fidelity vehicle behavior modeling.
+## Methodology
+
+* ### State Representation
+The intersection is represented as a grid of cells. Each state vector encodes the **occupancy status** of each grid segment (0 or 1), forming a **fixed-length state vector** (e.g., 80 binary inputs).
+
+* ### Action Space
+There are 4 discrete traffic light phase actions, each corresponding to a specific signal direction (e.g., NS-Green, EW-Green).
+
+* ### Reward Function
+The reward is the **negative cumulative waiting time** of vehicles, encouraging the agent to **minimize delay**.
+
+```python
+reward = -(total_wait_time)
+```
+
+
+
 
 ## Environment Setup 
-Please note that NVIDIA GPU is strongly recommended to run the algorithm. Below are the easiest steps in order to run the code from scratch in your machine.
+This project is built for simulation-driven deep reinforcement learning using the SUMO (Simulation of Urban Mobility) engine in combination with Python libraries like TensorFlow and Traci. It has been validated both in local environments (macOS, Ubuntu) and on headless platforms like Google Colab (with GUI disabled).
 
-### 1. Download Simulation of Urban MObility ([SUMO](https://www.dlr.de/ts/en/desktopdefault.aspx/tabid-9883/16931_read-41000/)). 
-In short, open your terminal, and type the following commands:
-    
-    sudo add-apt-repository ppa:sumo/stable
-    sudo apt-get update
-    sudo apt --fix-broken install
-    sudo apt-get install sumo sumo-tools sumo-doc
-    
-### 2. Tensorflow GPU installation:
+*For best performance, GPU acceleration is recommended, though this project has been optimized for fast training even without it by reducing training complexity.*
+---
 
-**Conventional Approach:**
+### System Requirements
 
-1. Install the recommended Nvidia-drivers for your system:
-    ```
-    sudo ubuntu-drivers autoinstall
-    ```
-2. Restart your machine and check if graphic card is installed.
-    ```
-    sudo reboot
-    nvidia-smi
-    ```
-    Please Note the CUDA Version on Top Right. This is required to follow correct CUDA version.
+- **OS:** macOS (Apple Silicon M1), Ubuntu (20.04+ recommended), or Google Colab
+- **Python:** 3.8 or above
+- **RAM:** ≥ 8 GB
+- **SUMO version:** 1.14.0+ (or stable)
+- **TensorFlow version:** ≥ 2.9 (with or without GPU)
 
-3. Download and Install CUDA Toolkit from [here](https://developer.nvidia.com/cuda-toolkit-archive).
-4. Download the correspomding cuDNN for installedCUDA by signing up on [Nvidia](https://developer.nvidia.com/rdp/cudnn-archive#a-collapse804-110).
-5. Install cuDNN by extracting the contents of cuDNN into the Toolkit path installed in Step 3. There will be files that you have to replace in CUDA Toolkit Directory.
-6. Check the path variables if CUDA_HOME is present and the toolkit paths are available.
-7. Install Tensorflow. Tensorflow by default comes with GPU support,so no need to install tensorflow-gpu specifically. Run below in Terminal:
-    ```
-    sudo apt update
-    sudo apt install python3-pip
-    pip install tensorflow
-    ```
-8. Check Tensorflow and Check GPU is detected by Tensorflow. Run below in Terminal:
-    Go to python console using ```python3``` and type the following.
-    ```
-    import tensorflow as tf
-    tf.config.list_physical_devices('GPU')
-    ```
-    You should be able to see "[PhysicalDevice(name=’ physical_device:GPU:0', device_type='GPU')]".
-    
-I went through this approach for days and it turned out to be very hard because of versions compatibility of CUDA, cuDNN, and Tensorflow-gpu. It is really a headache and there is a probability of 1% that this process will go right for you!
-So, better to dump pip and use conda instead.
+---
 
-**Conda Approach:**
+### Required Dependencies
 
-1. First remove the pre-installed CUDA and Nvidia drivers to avoid CUDA and cuDNN versions incompatibility by running the follwoing: 
-    ```
-    sudo apt-get --purge remove "*cublas*" "cuda*" "nsight*" "*nvidia*"
-    sudo apt-get purge nvidia*
-    sudo apt-get autoremove
-    sudo apt-get autoclean
-    sudo rm -rf /usr/local/cuda*
-    ```
-2. Then reinstall he recommended Nvidia drivers for your machine.
-    ```
-    sudo ubuntu-drivers autoinstall
-    ```
-3. Download ([Anaconda](https://www.anaconda.com/distribution/#download-section)) and install it by running the following command in the terminal of download directory. 
-    ```
-    bash Anaconda3-2022.10-Linux-x86_64.sh
-    ```
-4. Create an environment first named with ‘tf_gpu’ and install all the packages required by tensorflow-gpu including the cuda and cuDNN compatible verisons.
-    ```
-    conda create --name tf_gpu
-    activate tf_gpu
-    conda install tensorflow-gpu
-    ```
-5. Testing your Tensorflow installation. Open the terminal and activate the environment as follows.
-    ```
-    conda activate tf_gpu
-    ```
-    Go to python console using ```python``` and type the following.
-    ```
-    import tensorflow as tf
-    tf.config.list_physical_devices('GPU')
-    ```
-    ![image](https://user-images.githubusercontent.com/90580636/200055403-ad36db40-f9be-4cdd-8fdd-0ea0afa1535f.png)
+| Tool / Library     | Description                                                                 |
+|--------------------|-----------------------------------------------------------------------------|
+| `sumo`, `sumo-tools` | Open-source microscopic traffic simulator                                 |
+| `traci`            | Traffic control interface to manipulate SUMO during runtime                |
+| `sumolib`          | Utility library for interacting with SUMO's network and route definitions  |
+| `tensorflow`       | Deep learning backend for Q-network                                         |
+| `matplotlib`       | Visualization library for training/testing metrics                         |
+| `graphviz`, `pydot`| Required for SUMO graph/network manipulation                                |
 
-Now everything should work properly ✔️.
+---
+### Setup Instructions
 
-**Libraries Installation:**
-Create sumolib virtual environment:
+#### 1. Clone the Repository
+
+```bash
+git clone https://github.com/ayushii08/Traffic-Signal-Control-DQN.git
+cd Traffic-Signal-Control-DQN
 ```
-conda create -n sumolib
-conda activate sumolib
+#### 2. Install SUMO
+* macOS (via Homebrew):
 ```
-Install pip to sumo venv directory:
+brew install sumo
 ```
-conda install pip
+* Ubuntu (via APT):
 ```
-Find your anaconda directory, and find the actual sumolib env. It should be somewhere like /anaconda/envs/sumolib/ and 
-install new packages:
+sudo add-apt-repository ppa:sumo/stable
+sudo apt-get update
+sudo apt-get install sumo sumo-tools sumo-doc
 ```
-pip install sumolib
+*After installation, verify SUMO tools:*
 ```
-Activate Tensorflow_gpu and install the following libraries:
+sumo --version
 ```
-conda activate tf_gpu
-pip install sumolib
-pip install traci
-pip install pydot
-sudo apt install graphviz
+#### 3. Configure Environment Variable
+SUMO uses the environment variable SUMO_HOME to locate its tools directory.
+* Add this to your .bashrc or .zshrc:
+  ```
+  export SUMO_HOME="/usr/share/sumo"  # or wherever SUMO is installed
+  export PYTHONPATH="$SUMO_HOME/tools:$PYTHONPATH"
+  ```
+* Reload the shell:
+  ```
+  source ~/.bashrc  # or source ~/.zshrc
+  ```
+  macOS Homebrew path may look like:
+  ```
+  /opt/homebrew/Cellar/sumo/<version>/share/sumo/
+  ```
+####  4. Install Python Dependencies
+```
+pip install tensorflow traci sumolib matplotlib pydot
+sudo apt install graphviz  # Only needed on Linux for rendering traffic routes
+```
+If you're using Anaconda:
+```
+conda create -n traffic-dqn python=3.8
+conda activate traffic-dqn
+pip install -r requirements.txt  # Optional if you’ve created one
+```
+#### 5. Running on Google Colab (Headless Environment)
+(GUI-based SUMO simulations are not supported in Colab)
+* Set gui = False in Training_Setup.ini and Testing_Setup.ini
+* Upload the project files to your working directory
+* Use the %cd magic command to navigate into the project root
+* Run training or testing using:
+  ```
+  !python Train_Main.py
+  !python Test_Main.py
+  ```
+* Output files like reward plots and queue data are saved under /models/model_x/test/
+
+---
+
+#### Model Architecture
+
+The Deep Q-Network (DQN) used in this project approximates the action-value function \( Q(s, a) \), which predicts the cumulative reward expected after taking action \( a \) in state \( s \).
+
+### Network Design
+
+- **Input Layer:** Receives a binary vector representing the intersection state (e.g., 80 bits for 80 cells).
+- **Hidden Layers:** 2 fully connected layers (configurable width via `layerWidth`).
+- **Activation Function:** ReLU
+- **Output Layer:** 4 neurons representing Q-values for each action (traffic signal phase)
+
+###  Architecture Parameters
+
+| Parameter     | Description                                | Value (default) |
+|---------------|--------------------------------------------|-----------------|
+| `numStates`   | Input state size                           | 80              |
+| `numActions`  | Number of discrete actions (phases)        | 4               |
+| `layerWidth`  | Number of neurons in each hidden layer     | 64              |
+| `numLayers`   | Total hidden layers                        | 2               |
+| `learningRate`| Adam optimizer learning rate               | 0.001           |
+| `gamma`       | Discount factor for future rewards         | 0.75            |
+
+> The model is trained using the Adam optimizer and Mean Squared Error (MSE) loss.
+
+---
+
+## 3. Training Configuration
+
+All training hyperparameters are defined in `Training_Setup.ini`.
+
+### Key Parameters
+
+| Parameter          | Description                                           | Example Value |
+|-------------------|-------------------------------------------------------|---------------|
+| `numEpisodes`      | Number of training episodes                          | 30            |
+| `maxSteps`         | Steps per episode                                    | 7200          |
+| `numCars`          | Cars per episode                                     | 100           |
+| `batchSize`        | Experience replay mini-batch size                    | 16            |
+| `trainingEpochs`   | Training epochs after each episode                   | 3             |
+| `greenDuration`    | Time (s) for each green phase                        | 10            |
+| `yellowDuration`   | Yellow light duration (s)                            | 4             |
+| `minMemorySize`    | Minimum samples before training begins               | 500           |
+| `maxMemorySize`    | Max replay memory capacity                           | 5000          |
+| `gamma`            | Discount factor for Bellman update                   | 0.75          |
+
+### Training Flow
+
+1. Initialize SUMO environment.
+2. At each step:
+   - Observe state.
+   - Select action via epsilon-greedy policy.
+   - Execute action in SUMO.
+   - Store experience tuple.
+   - Sample and train on mini-batches from memory.
+3. Save model weights and plots at the end of each episode.
+
+```bash
+python Train_Main.py
+```
+---
+
+## 4. Testing Protocol
+
+The trained model is evaluated in a separate testing phase using parameters defined in `Testing_Setup.ini`. The environment generates traffic with a distinct seed and higher vehicle density to assess model generalization.
+
+### ⚙️ Testing Parameters
+
+| Parameter         | Description                                        | Example Value |
+|------------------|----------------------------------------------------|---------------|
+| `gui`             | Enable/disable SUMO GUI                           | `False`        |
+| `maxSteps`        | Total simulation steps per episode                | `7200`        |
+| `numCars`         | Number of vehicles injected                       | `1000`        |
+| `episodeSeed`     | Random seed for test episode                      | `10000`       |
+| `greenDuration`   | Fixed duration for green phase                    | `10` seconds  |
+| `yellowDuration`  | Fixed yellow light time                           | `4` seconds   |
+| `modelForTesting` | Trained model version to load                     | `2`           |
+
+###  Running Tests
+
+Run the testing script to simulate traffic behavior with the selected trained model:
+
+```bash
+python Test_Main.py
+```
+---
+
+## 5. Results Visualization
+
+After training and testing, the framework automatically generates visualizations to help evaluate the model's performance.
+
+### Reward Plot (`plot_reward.png`)
+
+- **Purpose**: Tracks the total reward collected during the simulation.
+- **Insight**: Higher rewards (less negative) indicate better control policies and smoother traffic flow.
+- **Source**: Calculated as the negative sum of cumulative wait time at the intersection.
+
+📍 *Path:* `models/model_<id>/test/plot_reward.png`
+
+---
+
+###  Queue Length Plot (`plot_queue.png`)
+
+- **Purpose**: Displays the evolution of average vehicle queue length during the episode.
+- **Insight**: Lower average queue lengths over time reflect more efficient signal timing.
+- **Goal**: Minimize traffic congestion and stabilize flow at intersections.
+
+📍 *Path:* `models/model_<id>/test/plot_queue.png`
+
+---
+
+##  6. File Structure
+
+The repository is organized as follows:
+
+```bash
+Traffic-Signal-Control-DQN/
+│
+├── Train_Main.py               # Entry point for model training
+├── Test_Main.py                # Entry point for model evaluation
+├── Model.py                    # DQN model architecture for training and testing
+├── Helpers.py                  # Utilities: route generation, plotting, logging
+├── Train_Simulation.py         # Handles SUMO interactions during training
+├── Test_Simulation.py          # Handles SUMO interactions during testing
+│
+├── Training_Setup.ini          # Training hyperparameters and simulation config
+├── Testing_Setup.ini           # Testing hyperparameters and simulation config
+│
+├── Sumo_environment/           # SUMO simulation configuration
+│   ├── environment.net.xml     # Road network file
+│   └── sumo_config.sumocfg     # Connects network and traffic route files
+│
+├── models/                     # Directory to save trained models and outputs
+│   └── model_<id>/             # Versioned model directories
+│       ├── model.h5            # Saved DQN model weights
+│       └── test/               # Test logs, reward/queue plots, setup configs
+│
+├── README.md                   # Project overview and documentation
+└── .gitignore                  # Ignore configuration for Git version control
 ```
 
-## Code Structure
+  
 
-**[Train_Main.py](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Train_Main.py)** is the main file in our repo. The main file is training_main.py. On each iteration, it handles the main loop that starts an episode. It also saves the network weights as well as three plots: the negative reward plot, the cumulative wait time plot, and the average queues plot.
-
-The algorithm is divided into classes that handle various aspects of training.
-
-- Two different model classes are defined in the **[model.py](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Model.py)** file: one used only during training (**TrainModel**) and one used only during testing (**TestModel**). Each Model class defines everything about the deep neural network and includes some functions for training and predicting outputs.
-
-- The **Simulation** class is in charge of the simulation. The function *run*, in particular, enables the simulation of a single episode. Other functions are also used during run to interact with **SUMO**, such as retrieving the environment's state (*get_state*), setting the next green light phase (*set_green_phase*), or preprocessing the data to train the neural network (*replay*). **[Train_Simulation.py](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Train_Simulation.py)** and **[Test_Simulation.py](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Test_Simulation.py)** each contain a slightly different **Simulation** class. Which one is loaded depends on whether we are in the training or testing phase.
-
-- The **[Helpers.py](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Helpers.py)** file contains:
-    - functions related to directories, such as automatically creating new model (**Set_Train_Dir**) and loading existing models for testing (**Set_Test_Dir**).
-    - contains a (**Traffic_Route_Generator**) function for defining the route of each vehicle in a single episode The resulting file is called episode **routes.rou.xml** and is saved in the **[Sumo_environment](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/tree/main/Sumo_environment)** folder.
-    - (**Save_and_Visualize**) function for plotting data.
-
-The **[Sumo_environment](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/tree/main/Sumo_environment)** folder contains a file called **[environment.net.xml](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Sumo_environment/environment.net.xml)**, which defines the structure of the environment and was created with SUMO NetEdit. The other file, sumo config.sumocfg, is a linker between the environment and route files.
-
-
-## Training and Testing Settings
-
-The following are the training settings, which can be found in the file **[Training_Setup.ini](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Training_Setup.ini)**:
-
-- **gui**: to enable or disable the SUMO interface while the simulation is running.
-- **numEpisodes**: the number of episodes that will be produced.
-- **maxSteps**: the length of each episode, with 1 step equaling 1 second (default duration in SUMO).
-- **numCars**: the number of cars generated in a single episode.
-- **greenDuration**: each green phase's duration in seconds.
-- **yellowDuration**: each yellow phase's duration in seconds.
-- **numLayers**: the number of neural network hidden layers.
-- **layerWidth**: the number of neurons in the neural network per layer.
-- **batchSize**: the number of samples retrieved from memory for each training iteration.
-- **trainingEpochs**: the number of training iterations executed at the end of each episode.
-- **learningRate**: the neural network's defined learning rate.
-- **minMemorySize**: the minimum number of samples required in memory to enable neural network training.
-- **maxMemorySize**: the maximum number of samples that the memory can hold.
-- **numStates**: the size of the environment from the agent's point of view (a change here also requires algorithm changes).
-- **numActions**: the number of actions that are possible (a change here also requires algorithm changes).
-- **gamma**: the Bellman equation's gamma parameter.
-- **modelsPathName**: the name of the folder containing the model versions and thus the results When you want to group together some models, specify a recognizable name.
-- **sumocfgFileName**: the name of the.sumocfg file contained within the **[Sumo_environment](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/tree/main/Sumo_environment)** folder.
-
-The following are the testing settings, which can be found in the file **[Testing_Setup.ini](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/blob/main/Testing_Setup.ini)** (Some of these must coincide with those utilized in the corresponding training):
-
-- **gui**: to enable or disable the SUMO interface while the simulation is running.
-- **maxSteps**: the length of each episode, with 1 step equaling 1 second (default duration in SUMO).
-- **numCars**: the number of cars generated in a single episode.
-- **episodeSeed**: the random number generator used to create cars (should not be a seed used during training).
-- **greenDuration**: each green phase's duration in seconds.
-- **yellowDuration**: each yellow phase's duration in seconds.
-- **numStates**: the size of the environment from the agent's point of view (a change here also requires algorithm changes).
-- **numActions**: the number of actions that are possible (a change here also requires algorithm changes).
-- **modelsPathName**: the name of the folder containing the model versions and thus the results When you want to group together some models, specify a recognizable name.
-- **sumocfgFileName**: the name of the.sumocfg file contained within the **[Sumo_environment](https://github.com/Reinforcement-Learning-F22/TrafficSignalControl/tree/main/Sumo_environment)** folder.
-- **modelForTesting**: the model version to load for the test.
-
-## Model Training and Testing
-How to train the model ?
-1. Clone the repo and navigate to the root folder.
-2. conda activate tf_gpu
-3. python Train_Main.py 
-
-For testing:
-- python Test_Main.py 
-
-To see how the training process goes, you can set gui parameter to True in filw Training_Setup.ini. However it will make the training very slow. 
-
-## Deep Q-Learning Algorithm 
-**The agent framework:**
-<br />
-<p float="left">
-    <img src="https://user-images.githubusercontent.com/90580636/202933072-53de2d7d-f217-47ce-8221-70e95c868a6d.png" width="550" height="350" />
-</p>
-<br />
-
-**Deep neural network architecture:**
-<br />
-<p float="left">
-    <img src="https://user-images.githubusercontent.com/90580636/202933105-ff23881f-4403-43d6-b3ac-3b86497b0d84.png" width="550" height="350" />
-</p>
-<br />
-
-**Experience replay (data collection task):**
-<br />
-<p float="left">
-    <img src="https://user-images.githubusercontent.com/90580636/202933167-923ba96b-0b37-4f8b-b85c-e568ecc812d4.png" width="500" height="450" />
-</p>
-<br />
-
-**Training: long queues and higher waiting time at the early episodes.**
-<br />
-
-![ezgif com-gif-maker](https://user-images.githubusercontent.com/90580636/202933475-74065547-75f2-456e-bf40-3d950af1edc5.gif)
-
-<br />
-
-**Testing: after the model is trained, the traffic flow is optimized and waiting time is reduced.**
-<br />
-
-![ezgif com-gif-maker(1)](https://user-images.githubusercontent.com/90580636/202933628-8725558a-7eb3-478e-91dc-fcf6e217e183.gif)
-
-<br />
-
-## Results
-<br />
-<p float="left">
-    <img src="https://user-images.githubusercontent.com/90580636/202934006-92320658-9d11-4031-8cdc-a5ec7e1bb01c.png" width="350" height="250" />    
-    <img src="https://user-images.githubusercontent.com/90580636/202934014-cbae19f2-b417-4161-8c5f-aae36bbedc8d.png" width="350" height="250" />
-</p>
-<br />
-
-<br />
-<p float="left">
-    <img src="https://user-images.githubusercontent.com/90580636/202934028-81285361-9d8b-42bc-9738-fd4e110c687b.png" width="350" height="250" />    
-    <img src="https://user-images.githubusercontent.com/90580636/202934046-9aa7415e-d79b-4b56-a673-dd9a0b066b45.png" width="350" height="250" />
-</p>
-<br />
 
 ## Acknowledgement
+[Deep Q-Learning Agent for Traffic Signal Control1](https://github.com/Reinforcement-Learning-F22/Traffic-Signal-Control-using-Deep-Q-Learning)
 
 [Deep Q-Learning Agent for Traffic Signal Control](https://github.com/AndreaVidali/Deep-QLearning-Agent-for-Traffic-Signal-Control)
 
