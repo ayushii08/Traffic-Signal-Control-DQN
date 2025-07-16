@@ -6,6 +6,9 @@ from shutil import copyfile
 from Train_Simulation import Simulation
 from Model import TrainModel
 from Helpers import Import_Train_Setup, Set_Train_Dir, Sumo_Settings, Save_and_Visualize
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 
 
 if __name__ == "__main__":

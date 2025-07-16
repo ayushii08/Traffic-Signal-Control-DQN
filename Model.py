@@ -39,7 +39,8 @@ class TrainModel:
         outputs = layers.Dense(self._outputDim, activation='linear')(x)
 
         model = keras.Model(inputs=inputs, outputs=outputs, name='my_model')
-        model.compile(loss=losses.mean_squared_error, optimizer=Adam(lr=self._learningRate))
+        import tensorflow as tf
+        model.compile(loss=tf.keras.losses.MeanSquaredError(), optimizer=tf.keras.optimizers.Adam(learning_rate=self._learningRate))
         return model
     
 

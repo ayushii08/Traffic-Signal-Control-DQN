@@ -254,7 +254,8 @@ class Simulation:
         """
         Retrieve a group of samples from the memory and for each of them update the learning equation, then train
         """
-        batch = self._Model.get_samples(self._Model.batch_size)
+        batch = self._Model.get_samples(self._Model._batchSize)
+
 
         if len(batch) > 0:  # if the memory is full enough
             states = np.array([val[0] for val in batch])  # extract states from the batch
